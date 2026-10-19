@@ -2,20 +2,16 @@
 import { useState } from "react";
 import vocab from "./vocab.json";
 
-/* 퀴즈 유형: [질문 필드, 정답 필드] */
-const F = { hz2m: ["w", "m"], m2hz: ["m", "w"], hz2py: ["w", "p"], py2hz: ["p", "w"] };
+/* 퀴즈 유형: [질문 필드, 정답 필드] — p=병음, m=뜻 (한자는 화면에 표시하지 않음) */
+const F = { py2m: ["p", "m"], m2py: ["m", "p"] };
 const MODES = [
   ["mix", "🎲 혼합"],
-  ["hz2m", "한자 → 뜻"],
-  ["m2hz", "뜻 → 한자"],
-  ["hz2py", "한자 → 병음"],
-  ["py2hz", "병음 → 한자"],
+  ["py2m", "병음 → 뜻"],
+  ["m2py", "뜻 → 병음"],
 ];
 const ASK = {
-  hz2m: "이 단어의 뜻은?",
-  m2hz: "다음 뜻에 해당하는 단어는?",
-  hz2py: "이 단어의 병음은?",
-  py2hz: "다음 병음에 해당하는 단어는?",
+  py2m: "이 병음의 뜻은?",
+  m2py: "다음 뜻에 해당하는 병음은?",
 };
 const COUNTS = [10, 20, 30];
 
@@ -28,7 +24,7 @@ function shuffle(a) {
   return b;
 }
 
-/* 한 유형의 문제 전체 생성 (모호한 문제는 제외: 还처럼 한자는 같고 뜻이 다른 경우 등) */
+/* 한 유형의 문제 전체 생성 (hái처럼 병음은 같고 뜻이 다른 모호한 문제는 제외) */
 function pool(m) {
   const [qk, ak] = F[m];
   const seen = new Set();
@@ -53,7 +49,7 @@ function makeQuiz(mode, n) {
   const seen = new Set();
   const out = [];
   for (const q of shuffle(modes.flatMap(pool))) {
-    const k = q.v.w + "|" + q.v.m;
+    const k = q.v.p + "|" + q.v.m;
     if (mode === "mix" && seen.has(k)) continue;
     seen.add(k);
     out.push(q);
@@ -82,6 +78,9 @@ export default function Page() {
   const [score, setScore] = useState(0);
   const [wrongs, setWrongs] = useState([]);
   const [phase, setPhase] = useState("landing");
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState("");
+  const [genCount, setGenCount] = useState(0);
   const cur = qs[idx];
 
   const start = (list) => {
@@ -89,6 +88,23 @@ export default function Page() {
     setScore(0); setWrongs([]); setPhase("quiz");
   };
   const begin = () => start(makeQuiz(mode, count));
+  const generate = async () => {
+    setGenerating(true); setGenError("");
+    try {
+      const res = await fetch("/api/generate", { method: "POST" });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error("서버 응답 파싱 실패: " + text.slice(0, 100)); }
+      if (data.error) throw new Error(data.error);
+      if (!data.questions?.length) throw new Error("문제가 생성되지 않았습니다");
+      setGenCount((c) => c + 1);
+      start(data.questions);
+    } catch (e) {
+      setGenError(e.message || "생성 실패");
+    } finally {
+      setGenerating(false);
+    }
+  };
   const retryWrong = () => start(shuffle(wrongs.map(({ picked, ...q }) => q)));
 
   const check = () => {
@@ -111,7 +127,7 @@ export default function Page() {
           <span style={{ background: "#DE2910" }} /><span style={{ background: "#FFDE00" }} />
         </div>
         <h1 className="hero">中文 Quiz</h1>
-        <p className="sub">중국어 단어 연습 · 1~7과 · 총 {vocab.length}단어</p>
+        <p className="sub">중국어 병음·뜻 연습 · 1~7과 · 총 {vocab.length}단어</p>
         <p className="label">퀴즈 유형</p>
         <div className="chips">
           {MODES.map(([k, l]) => (
@@ -124,7 +140,11 @@ export default function Page() {
             <button key={c} className={"chip" + (count === c ? " on" : "")} onClick={() => setCount(c)}>{c}문제</button>
           ))}
         </div>
-        <button className="btn" style={{ marginTop: 28 }} onClick={begin}>시작하기</button>
+        <button className="btn" style={{ marginTop: 28 }} onClick={begin}>기본 문제로 시작</button>
+        <button className="btn accent" style={{ opacity: generating ? .6 : 1 }} onClick={generate} disabled={generating}>
+          {generating ? "⏳ AI로 새 문제 생성 중..." : "🤖 AI로 새 문제 생성하기"}
+        </button>
+        {genError && <p style={{ marginTop: 12, fontSize: 14, color: "#ef4444" }}>{genError}</p>}
       </div></div>
     );
 
@@ -138,8 +158,13 @@ export default function Page() {
         <p style={{ fontSize: 18, fontWeight: 600, color: "#888", marginBottom: 24 }}>{pct}%</p>
         {wrongs.length > 0 && <button className="btn ghost" onClick={() => setPhase("review")}>오답 노트 ({wrongs.length})</button>}
         {wrongs.length > 0 && <button className="btn accent" onClick={retryWrong}>틀린 문제만 다시 풀기</button>}
-        <button className="btn" onClick={begin}>새 문제로 다시</button>
+        <button className="btn" onClick={begin}>기본 문제로 다시</button>
+        <button className="btn accent" style={{ opacity: generating ? .6 : 1 }} onClick={generate} disabled={generating}>
+          {generating ? "⏳ AI로 새 문제 생성 중..." : "🤖 AI로 새 문제 생성하기"}
+        </button>
+        {genError && <p style={{ marginTop: 12, fontSize: 14, color: "#ef4444" }}>{genError}</p>}
         <button className="btn ghost" onClick={() => setPhase("landing")}>처음으로</button>
+        {genCount > 0 && <p style={{ marginTop: 16, fontSize: 12, color: "#FFDE00", opacity: .6 }}>AI 생성 #{genCount}</p>}
       </div></div>
     );
   }
@@ -153,31 +178,35 @@ export default function Page() {
         {wrongs.map((w, i) => (
           <div className="rev" key={i}>
             <p style={{ fontWeight: 600, marginBottom: 10 }}>
-              <span style={{ color: "#ef4444", fontWeight: 800, marginRight: 8 }}>Q{i + 1}</span>{ASK[w.m]} {w.q}
+              <span style={{ color: "#ef4444", fontWeight: 800, marginRight: 8 }}>Q{i + 1}</span>{w.m === "ai" ? "" : ASK[w.m] + " "}{w.q}
             </p>
             <p style={{ color: "#ef4444", opacity: .8, textDecoration: "line-through" }}>✕ 내 답: {w.o[w.picked]}</p>
             <p style={{ color: "#22c55e", fontWeight: 600 }}>✓ 정답: {w.o[w.a]}</p>
-            <span className="tag">{w.v.w} · {w.v.p} · {w.v.m}</span>
+            <span className="tag">{w.v.p} · {w.v.m}</span>
           </div>
         ))}
         <button className="btn accent" onClick={retryWrong}>틀린 문제만 다시 풀기</button>
-        <button className="btn" onClick={begin}>새 문제로 다시</button>
+        <button className="btn" onClick={begin}>기본 문제로 다시</button>
+        <button className="btn accent" style={{ opacity: generating ? .6 : 1 }} onClick={generate} disabled={generating}>
+          {generating ? "⏳ AI로 새 문제 생성 중..." : "🤖 AI로 새 문제 생성하기"}
+        </button>
+        {genError && <p style={{ marginTop: 12, fontSize: 14, color: "#ef4444" }}>{genError}</p>}
         <button className="btn ghost" style={{ marginBottom: 40 }} onClick={() => setPhase("landing")}>처음으로</button>
       </div></div>
     );
 
   /* QUIZ */
   const [qk, ak] = F[cur.m];
-  const big = ak === "w";
-  const qSize = qk === "w" ? 56 : qk === "p" ? 36 : 22;
+  const big = ak === "p";
+  const qSize = qk === "p" ? 40 : 22;
   return (
     <div className="wrap top"><div className="col">
       <div className="top-row"><span>{idx + 1} / {qs.length}</span><span style={{ color: "#22c55e" }}>✓ {score}</span></div>
       <div className="prog"><div style={{ width: ((idx + 1) / qs.length) * 100 + "%" }} /></div>
-      <p className="ask">{ASK[cur.m]}</p>
+      <p className="ask">{ASK[cur.m]}{isAi && genCount > 0 ? ` #${genCount}` : ""}</p>
       <div className="prompt">
-        <h2 style={{ fontSize: qSize }}>{cur.q}</h2>
-        <button className="speak" onClick={() => speak(cur.v.w)} aria-label="발음 듣기">🔊</button>
+        <h2 style={{ fontSize: qSize, lineHeight: 1.5 }}>{cur.q}</h2>
+        {cur.v && <button className="speak" onClick={() => speak(cur.v.w)} aria-label="발음 듣기">🔊</button>}
       </div>
       <div className="opts">
         {cur.o.map((opt, i) => {
@@ -195,7 +224,7 @@ export default function Page() {
       </div>
       {done && (
         <div className="info">
-          <b>{cur.v.w}</b>{cur.v.p}{cur.v.pos && ` · ${cur.v.pos}`}<br />{cur.v.m}
+          <b>{cur.v.p}</b>{cur.v.pos}<br />{cur.v.m}
         </div>
       )}
       {!done
