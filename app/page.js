@@ -182,7 +182,7 @@ export default function Page() {
             </p>
             <p style={{ color: "#ef4444", opacity: .8, textDecoration: "line-through" }}>✕ 내 답: {w.o[w.picked]}</p>
             <p style={{ color: "#22c55e", fontWeight: 600 }}>✓ 정답: {w.o[w.a]}</p>
-            <span className="tag">{w.v.p} · {w.v.m}</span>
+            {w.v && <span className="tag">{w.v.p} · {w.v.m}</span>}
           </div>
         ))}
         <button className="btn accent" onClick={retryWrong}>틀린 문제만 다시 풀기</button>
@@ -196,9 +196,9 @@ export default function Page() {
     );
 
   /* QUIZ */
-  const [qk, ak] = F[cur.m];
-  const big = ak === "p";
-  const qSize = qk === "p" ? 40 : 22;
+  const isAi = cur.m === "ai";
+  const big = cur.m === "m2py";
+  const qSize = isAi ? 20 : cur.m === "py2m" ? 40 : 22;
   return (
     <div className="wrap top"><div className="col">
       <div className="top-row"><span>{idx + 1} / {qs.length}</span><span style={{ color: "#22c55e" }}>✓ {score}</span></div>
@@ -222,7 +222,7 @@ export default function Page() {
           );
         })}
       </div>
-      {done && (
+      {done && cur.v && (
         <div className="info">
           <b>{cur.v.p}</b>{cur.v.pos}<br />{cur.v.m}
         </div>
