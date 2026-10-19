@@ -1,10 +1,11 @@
 import vocab from "../../vocab.json";
 
-export const runtime = "edge";
+// Edge 런타임은 응답 제한이 짧아 타임아웃이 나므로 Node 런타임 + 최대 60초 사용
+export const maxDuration = 60;
 
 const WORDS = vocab.map((v) => `${v.p} = ${v.m}${v.pos ? ` (${v.pos})` : ""}`).join("\n");
 
-const PROMPT = `중국어 초급(1~7과) 단어 퀴즈 출제자입니다. 아래 단어 목록만 근거로 4지선다 30문제를 만드세요.
+const PROMPT = `중국어 초급(1~7과) 단어 퀴즈 출제자입니다. 아래 단어 목록만 근거로 4지선다 20문제를 만드세요.
 
 [단어 목록: 한어병음 = 뜻 (품사)]
 ${WORDS}
@@ -33,7 +34,7 @@ export async function POST() {
         contents: [{ role: "user", parts: [{ text: PROMPT }] }],
         generationConfig: {
           temperature: 0.9,
-          maxOutputTokens: 8192,
+          maxOutputTokens: 6000,
           responseMimeType: "application/json",
           responseSchema: {
             type: "array",
