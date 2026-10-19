@@ -43,3 +43,4 @@ h1.hero{font-size:clamp(42px,10vw,56px);font-weight:900;letter-spacing:-.03em;ma
 .rev{padding:18px;border-radius:14px;background:var(--card);border:1px solid var(--border);margin-bottom:14px}
 .rev p{font-size:14px;margin-bottom:4px}
 .tag{display:inline-block;margin-top:8px;font-size:11px;color:var(--dimmer);padding:3px 8px;border-radius:6px;background:#1e1e1e}
+.gloss{display:block;margin-top:3px;font-size:13px;font-weight:400;color:var(--dim)}

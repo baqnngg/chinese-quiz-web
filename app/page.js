@@ -58,6 +58,16 @@ function makeQuiz(mode, n) {
   return out;
 }
 
+/* 보기 하나의 짝 정보: 병음이면 뜻, 뜻이면 병음 (AI 문제 보기도 단어장에서 찾아 표시) */
+const norm = (t) => String(t).replace(/\s+/g, "").toLowerCase();
+function gloss(opt) {
+  const n = norm(opt);
+  const byP = vocab.filter((v) => norm(v.p) === n);
+  if (byP.length) return [...new Set(byP.map((v) => v.m))].join(" / ");
+  const byM = vocab.filter((v) => v.m === opt);
+  return [...new Set(byM.map((v) => v.p))].join(" / ");
+}
+
 const speak = (t) => {
   try {
     const u = new SpeechSynthesisUtterance(t);
@@ -215,7 +225,7 @@ export default function Page() {
           else if (i === sel) c += " sel";
           return (
             <button key={i} className={c} onClick={() => !done && setSel(i)}>
-              <i>{String.fromCharCode(65 + i)}</i><span>{opt}</span>
+              <i>{String.fromCharCode(65 + i)}</i><span>{opt}{done && gloss(opt) && <small className="gloss">{gloss(opt)}</small>}</span>
               {done && i === cur.a && <b style={{ color: "#22c55e" }}>✓</b>}
               {done && i === sel && i !== cur.a && <b style={{ color: "#ef4444" }}>✕</b>}
             </button>
