@@ -22,7 +22,9 @@ export async function POST() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return Response.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
 
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
+  // 모델이 바뀌면 코드 수정 없이 Vercel 환경 변수 GEMINI_MODEL 로 교체 가능
+  const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+  const url = "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent?key=" + apiKey;
   try {
     const res = await fetch(url, {
       method: "POST",
