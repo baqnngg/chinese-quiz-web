@@ -91,6 +91,7 @@ export default function Page() {
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState("");
   const [genCount, setGenCount] = useState(0);
+  const [seen, setSeen] = useState([]); // 이전에 나온 AI 문제 (다음 생성 때 중복 방지용)
   const cur = qs[idx];
 
   const start = (list) => {
@@ -101,13 +102,18 @@ export default function Page() {
   const generate = async () => {
     setGenerating(true); setGenError("");
     try {
-      const res = await fetch("/api/generate", { method: "POST" });
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avoid: seen.slice(-40) }),
+      });
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { throw new Error("서버 응답 파싱 실패: " + text.slice(0, 100)); }
       if (data.error) throw new Error(data.error);
       if (!data.questions?.length) throw new Error("문제가 생성되지 않았습니다");
       setGenCount((c) => c + 1);
+      setSeen((p) => [...p, ...data.questions.map((q) => q.q)].slice(-60));
       start(data.questions);
     } catch (e) {
       setGenError(e.message || "생성 실패");
